@@ -61,8 +61,7 @@ class Bot(Client):
 
         if REPLIT:
             await keep_alive()
-            
-            asyncio.create_task(ping_server())
+          
 
         temp.START_TIME = datetime.datetime.now()
         await super().start()
