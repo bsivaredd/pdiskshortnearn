@@ -1,5 +1,7 @@
 import datetime
 import asyncio
+import aiohttp
+from aiohttp import web
 from pyrogram import Client
 from config import *
 from database import db
@@ -14,35 +16,6 @@ logging.config.fileConfig('logging.conf')
 logging.getLogger().setLevel(logging.INFO)
 
 
-if REPLIT:
-    from flask import Flask, jsonify
-    from threading import Thread
-    
-    app = Flask('')
-    
-    @app.route('/')
-    def main():
-        
-        runtime = datetime.datetime.now()
-        t = runtime - temp.START_TIME
-        runtime = str(datetime.timedelta(seconds=t.seconds))
-        
-        res = {
-            "status":"running",
-            "hosted":"replit.com",
-            "repl":REPLIT,
-            "bot":temp.BOT_USERNAME,
-            "runtime":runtime
-        }
-        
-        return jsonify(res)
-
-    def run():
-      app.run(host="0.0.0.0", port=8000)
-    
-    async def keep_alive():
-      server = Thread(target=run)
-      server.start()
 
 
 class Bot(Client):
@@ -57,11 +30,6 @@ class Bot(Client):
         )
 
     async def start(self): 
-
-
-        if REPLIT:
-            await keep_alive()
-          
 
         temp.START_TIME = datetime.datetime.now()
         await super().start()
@@ -79,6 +47,26 @@ class Bot(Client):
 
         logging.info(f'{self.username} Bot started')
 
+        if REPLIT:
+
+            routes = web.RouteTableDef()
+            @routes.get("/", allow_head=True)
+            
+            async def root_route_handler(request):
+                res = {
+                    "status": "running",
+                }
+                return web.json_response(res)
+
+            async def web_server():
+                web_app = web.Application(client_max_size=30000000)
+                web_app.add_routes(routes)
+                return web_app
+
+            app = web.AppRunner(await web_server())
+            await app.setup()
+            await web.TCPSite(app, "0.0.0.0", 8000).start()
+            
     async def stop(self, *args):
         await broadcast_admins(self, '** Bot Stopped Bye **')
         await super().stop()
